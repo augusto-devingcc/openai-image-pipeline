@@ -1,8 +1,8 @@
 """Batch image processor for the OpenAI Images API.
 
 Reads a directory of source images, applies the configured operation
-(generate, edit, or variation) to each one, and writes the results to a
-dated output folder. Designed to run unattended on a server alongside the
+(generate or edit) to each one, and writes the results to a dated
+output folder. Designed to run unattended on a server alongside the
 companion Next.js web demo.
 """
 
@@ -32,8 +32,8 @@ from tenacity import (
 )
 
 SUPPORTED_EXTENSIONS: tuple[str, ...] = (".jpg", ".jpeg", ".png", ".webp")
-VALID_MODES: tuple[str, ...] = ("generate", "edit", "variation")
-DEFAULT_MODEL: str = "gpt-image-1"
+VALID_MODES: tuple[str, ...] = ("generate", "edit")
+DEFAULT_MODEL: str = "gpt-image-2"
 DEFAULT_SIZE: str = "1024x1024"
 
 logger = logging.getLogger("openai_image_pipeline")
@@ -70,7 +70,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog="process.py",
         description=(
             "Batch process a folder of images through the OpenAI Images API. "
-            "Supports text-to-image generation, prompt-based edits, and variations."
+            "Supports text-to-image generation and prompt-based edits."
         ),
     )
     parser.add_argument(
@@ -89,7 +89,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--prompt",
         type=str,
         default=None,
-        help="Prompt to apply. Required for 'generate' and 'edit' modes.",
+        help="Prompt to apply. Required for all modes.",
     )
     parser.add_argument(
         "--mode",
@@ -165,7 +165,7 @@ def validate_config(args: argparse.Namespace) -> CLIConfig:
     if not args.input.exists() or not args.input.is_dir():
         raise ValueError(f"Input directory does not exist: {args.input}")
 
-    if args.mode in ("generate", "edit") and not args.prompt:
+    if not args.prompt:
         raise ValueError(f"--prompt is required for mode '{args.mode}'.")
 
     if args.max_retries < 1:
@@ -248,22 +248,6 @@ def call_edit(client: OpenAI, config: CLIConfig, source: Path) -> bytes:
     return _extract_image_bytes(response)
 
 
-def call_variation(client: OpenAI, config: CLIConfig, source: Path) -> bytes:
-    """Call the variations endpoint and return raw image bytes.
-
-    Note: as of this writing only dall-e-2 supports variations; gpt-image-1
-    does not. The caller is responsible for picking a supported model.
-    """
-    with source.open("rb") as fh:
-        response = client.images.create_variation(
-            model=config.model,
-            image=fh,
-            size=config.size,
-            n=1,
-        )
-    return _extract_image_bytes(response)
-
-
 def _extract_image_bytes(response: Any) -> bytes:
     """Pull the first image out of an Images API response as raw bytes."""
     data = getattr(response, "data", None)
@@ -303,9 +287,6 @@ def process_image(
         if config.mode == "edit":
             assert source is not None
             return call_edit(client, config, source)
-        if config.mode == "variation":
-            assert source is not None
-            return call_variation(client, config, source)
         raise ValueError(f"Unknown mode: {config.mode}")
 
     try:

@@ -2,6 +2,8 @@
 
 A small Python command-line tool that runs a folder of images through the OpenAI Images API in batch. It is the server-side companion to the `openai-image-pipeline` web demo. The web demo is for interactive testing in a browser; this CLI is what you run on a box when you actually need to process hundreds of files unattended.
 
+DALL-E 3 was retired by OpenAI on 2026-03-04 and DALL-E 2 was sunset on 2026-05-12. The pipeline only supports the current GPT Image models.
+
 ## Install
 
 ```bash
@@ -18,7 +20,7 @@ cp .env.example .env
 
 ## Usage
 
-The CLI supports three modes that map one-to-one to the OpenAI Images API.
+The CLI supports two modes that map one-to-one to the OpenAI Images API.
 
 ### Edit mode (default)
 
@@ -44,28 +46,15 @@ python process.py \
   --prompt "A minimal flat-vector illustration of a product on a pastel background, 4k, centered."
 ```
 
-### Variation mode
-
-Remixes each input image. Note: as of writing, only `dall-e-2` supports variations through the OpenAI API. Pass `--model dall-e-2` when using this mode.
-
-```bash
-python process.py \
-  --input ./sample \
-  --output ./out \
-  --mode variation \
-  --model dall-e-2 \
-  --size 1024x1024
-```
-
 ### All flags
 
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
 | `--input` | yes | — | Directory with source images (`.jpg`, `.jpeg`, `.png`, `.webp`). |
 | `--output` | yes | — | Output root. A dated subfolder is created on each run. |
-| `--prompt` | yes for `generate` / `edit` | — | Prompt applied to every image. |
-| `--mode` | no | `edit` | One of `generate`, `edit`, `variation`. |
-| `--model` | no | `gpt-image-1` | OpenAI image model. Use `dall-e-2` for variations. |
+| `--prompt` | yes | — | Prompt applied to every image. |
+| `--mode` | no | `edit` | One of `generate`, `edit`. |
+| `--model` | no | `gpt-image-2` | OpenAI image model. Also accepts `gpt-image-1`. |
 | `--size` | no | `1024x1024` | Output size. Must be valid for the chosen model. |
 | `--api-key` | no | — | OpenAI key. Falls back to `OPENAI_API_KEY`. |
 | `--max-retries` | no | `3` | Retry attempts per image (exponential backoff). |
@@ -95,15 +84,25 @@ The process never crashes on a single image failure. It logs the error, writes i
 
 ## Cost estimate
 
-Pricing for `gpt-image-1` at `1024x1024` (verify on the OpenAI pricing page before quoting a client):
+Per-image pricing (verify on the OpenAI pricing page before quoting a client):
+
+**`gpt-image-2`** at `1024x1024`:
+
+| Quality | Approximate cost per image |
+|---------|----------------------------|
+| Low     | around $0.006 |
+| Medium  | around $0.053 |
+| High    | around $0.211 |
+
+**`gpt-image-1`** at `1024x1024`:
 
 | Quality | Approximate cost per image |
 |---------|----------------------------|
 | Low     | around $0.011 |
-| Medium  | around $0.04 |
-| High    | around $0.17 |
+| Medium  | around $0.042 |
+| High    | around $0.167 |
 
-A batch of 100 images at medium quality runs roughly $4. `dall-e-2` is cheaper (under $0.02 per image at 1024x1024) but produces lower-quality output. The CLI does not set a quality flag explicitly, so it inherits the API default for the chosen model.
+A batch of 100 images at medium quality on `gpt-image-2` runs roughly $5.30. `gpt-image-1` is cheaper but uses the older model.
 
 ## Why a CLI and not the web demo
 

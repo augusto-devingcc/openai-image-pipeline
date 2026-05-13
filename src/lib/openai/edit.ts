@@ -11,7 +11,7 @@ export async function editImage(
     filename: string;
     mimeType: string;
     prompt: string;
-    model: Extract<ImageModel, "gpt-image-1" | "dall-e-2">;
+    model: ImageModel;
     size: ImageSize;
     quality: Quality;
   }
@@ -26,13 +26,8 @@ export async function editImage(
     prompt,
     n: 1,
     size,
+    quality,
   };
-
-  if (model === "gpt-image-1") {
-    params.quality = quality;
-  } else {
-    params.response_format = "b64_json";
-  }
 
   const res = (await client.images.edit(
     params as unknown as Parameters<typeof client.images.edit>[0]

@@ -36,19 +36,13 @@ const MODES: Array<{ value: Mode; title: string; desc: string }> = [
     title: "Generate",
     desc: "Create new images from the prompt alone. Use the count of uploaded files as the batch size.",
   },
-  {
-    value: "variation",
-    title: "Variation",
-    desc: "Remix each input image without a prompt. dall-e-2 only.",
-  },
 ];
 
 type ModelOption = { value: ImageModel; label: string; note: string };
 
 const MODEL_OPTIONS: ModelOption[] = [
-  { value: "gpt-image-1", label: "Image 2.0 (gpt-image-1)", note: "Highest quality. Slower." },
-  { value: "dall-e-3", label: "DALL-E 3", note: "Fast. Generate only." },
-  { value: "dall-e-2", label: "DALL-E 2", note: "Cheapest. Supports variations." },
+  { value: "gpt-image-2", label: "Image 2.0 (gpt-image-2)", note: "Latest. Best text rendering and physics." },
+  { value: "gpt-image-1", label: "Image 1 (gpt-image-1)", note: "Cheaper. Previous generation." },
 ];
 
 export function PipelineExperience() {
@@ -56,7 +50,7 @@ export function PipelineExperience() {
   const [files, setFiles] = useState<File[]>([]);
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<Mode>("edit");
-  const [model, setModel] = useState<ImageModel>("gpt-image-1");
+  const [model, setModel] = useState<ImageModel>("gpt-image-2");
   const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
   const [rows, setRows] = useState<ImageRowState[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -65,15 +59,13 @@ export function PipelineExperience() {
   const [liveCost, setLiveCost] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  const effectiveModel: ImageModel = mode === "variation" ? "dall-e-2" : model;
-  const quality = effectiveModel === "gpt-image-1" ? "medium" : "standard";
-  const size =
-    effectiveModel === "dall-e-2" ? "1024x1024" : "1024x1024";
+  const quality = "medium" as const;
+  const size = "1024x1024" as const;
 
   const plannedCount = mode === "generate" ? Math.max(files.length, 1) : files.length;
   const estimatedCost = useMemo(
-    () => plannedCount * estimateImageCost(effectiveModel, size, quality),
-    [plannedCount, effectiveModel, size, quality]
+    () => plannedCount * estimateImageCost(model, size, quality),
+    [plannedCount, model, size, quality]
   );
 
   const reset = useCallback(() => {
@@ -167,13 +159,13 @@ export function PipelineExperience() {
       setStatus("error");
       return;
     }
-    if (mode !== "variation" && prompt.trim().length === 0) {
+    if (prompt.trim().length === 0) {
       setErrorMsg("Add a prompt before running.");
       setStatus("error");
       return;
     }
-    if (mode !== "generate" && files.length === 0) {
-      setErrorMsg("Upload at least one image for edit or variation modes.");
+    if (mode === "edit" && files.length === 0) {
+      setErrorMsg("Upload at least one image for edit mode.");
       setStatus("error");
       return;
     }
@@ -185,7 +177,7 @@ export function PipelineExperience() {
     const fd = new FormData();
     fd.set("prompt", prompt);
     fd.set("mode", mode);
-    fd.set("model", effectiveModel);
+    fd.set("model", model);
     fd.set("size", size);
     fd.set("quality", quality);
     for (const f of files) fd.append("image", f);
@@ -236,13 +228,13 @@ export function PipelineExperience() {
       setErrorMsg(message);
       setStatus("error");
     }
-  }, [apiKey, prompt, mode, effectiveModel, size, quality, files, reset, handleEvent]);
+  }, [apiKey, prompt, mode, model, size, quality, files, reset, handleEvent]);
 
   const isRunning = status === "running";
   const canRun =
     !!apiKey &&
     !isRunning &&
-    (mode === "variation" ? files.length > 0 : prompt.trim().length > 0) &&
+    prompt.trim().length > 0 &&
     (mode === "generate" ? true : files.length > 0);
 
   return (
@@ -285,7 +277,7 @@ export function PipelineExperience() {
               <RadioGroup
                 value={mode}
                 onValueChange={(v) => setMode(v as Mode)}
-                className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-2"
                 disabled={isRunning}
               >
                 {MODES.map((m) => (
@@ -313,9 +305,9 @@ export function PipelineExperience() {
                 Model
               </Label>
               <Select
-                value={effectiveModel}
+                value={model}
                 onValueChange={(v) => setModel(v as ImageModel)}
-                disabled={isRunning || mode === "variation"}
+                disabled={isRunning}
               >
                 <SelectTrigger className="w-full bg-[#1e293b] border-[#334155] text-[#f4f4f5]">
                   <SelectValue placeholder="Pick a model" />
@@ -333,11 +325,6 @@ export function PipelineExperience() {
                   ))}
                 </SelectContent>
               </Select>
-              {mode === "variation" && (
-                <p className="text-xs text-[#94a3b8] mt-1.5">
-                  Variations are dall-e-2 only.
-                </p>
-              )}
             </section>
 
             <section>
@@ -345,14 +332,14 @@ export function PipelineExperience() {
                 htmlFor="prompt"
                 className="text-xs uppercase tracking-wider text-[#94a3b8] font-mono mb-2 block"
               >
-                Prompt {mode === "variation" && <span className="text-[#475569]">(ignored for variations)</span>}
+                Prompt
               </Label>
               <Textarea
                 id="prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 rows={6}
-                disabled={isRunning || mode === "variation"}
+                disabled={isRunning}
                 placeholder={
                   mode === "generate"
                     ? "A studio product photo of a leather wallet on a marble surface, soft lighting"
@@ -384,7 +371,7 @@ export function PipelineExperience() {
                     </span>
                   </p>
                   <p className="text-xs text-[#94a3b8] mt-0.5">
-                    {plannedCount} image{plannedCount === 1 ? "" : "s"} · {effectiveModel} · {size}
+                    {plannedCount} image{plannedCount === 1 ? "" : "s"} · {model} · {size}
                   </p>
                 </div>
                 <Button

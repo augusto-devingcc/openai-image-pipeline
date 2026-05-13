@@ -1,17 +1,14 @@
-export type Mode = "generate" | "edit" | "variation";
+export type Mode = "generate" | "edit";
 
-export type ImageModel = "gpt-image-1" | "dall-e-3" | "dall-e-2";
+export type ImageModel = "gpt-image-2" | "gpt-image-1";
 
 export type ImageSize =
   | "1024x1024"
   | "1024x1536"
   | "1536x1024"
-  | "1792x1024"
-  | "1024x1792"
-  | "512x512"
-  | "256x256";
+  | "2048x2048";
 
-export type Quality = "low" | "medium" | "high" | "standard" | "hd";
+export type Quality = "low" | "medium" | "high";
 
 export interface ImageResult {
   b64: string;

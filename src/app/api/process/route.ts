@@ -3,7 +3,6 @@ import { NextRequest } from "next/server";
 import { createOpenAIClient, isValidOpenAIKey } from "@/lib/openai/client";
 import { generateImage } from "@/lib/openai/generate";
 import { editImage } from "@/lib/openai/edit";
-import { variationImage } from "@/lib/openai/variation";
 import { defaultQualityFor, defaultSizeFor } from "@/lib/openai/pricing";
 import { appendError, appendResult, createRun } from "@/lib/run-store";
 import { sseEvent } from "@/lib/sse";
@@ -23,12 +22,12 @@ function bad(message: string, status: number): Response {
 }
 
 function parseMode(value: unknown): Mode | null {
-  if (value === "generate" || value === "edit" || value === "variation") return value;
+  if (value === "generate" || value === "edit") return value;
   return null;
 }
 
 function parseModel(value: unknown): ImageModel | null {
-  if (value === "gpt-image-1" || value === "dall-e-3" || value === "dall-e-2") return value;
+  if (value === "gpt-image-2" || value === "gpt-image-1") return value;
   return null;
 }
 
@@ -37,10 +36,7 @@ function parseSize(value: unknown, fallback: ImageSize): ImageSize {
     "1024x1024",
     "1024x1536",
     "1536x1024",
-    "1792x1024",
-    "1024x1792",
-    "512x512",
-    "256x256",
+    "2048x2048",
   ];
   return typeof value === "string" && (allowed as string[]).includes(value)
     ? (value as ImageSize)
@@ -48,13 +44,7 @@ function parseSize(value: unknown, fallback: ImageSize): ImageSize {
 }
 
 function parseQuality(value: unknown, fallback: Quality): Quality {
-  if (
-    value === "low" ||
-    value === "medium" ||
-    value === "high" ||
-    value === "standard" ||
-    value === "hd"
-  ) {
+  if (value === "low" || value === "medium" || value === "high") {
     return value;
   }
   return fallback;
@@ -78,21 +68,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   const modelRaw = parseModel(form.get("model"));
   if (!mode) return bad("Invalid mode", 400);
 
-  let model: ImageModel = modelRaw ?? "gpt-image-1";
-  if (mode === "variation") model = "dall-e-2";
+  const model: ImageModel = modelRaw ?? "gpt-image-2";
 
-  const size = parseSize(form.get("size"), defaultSizeFor(model));
-  const quality = parseQuality(form.get("quality"), defaultQualityFor(model));
+  const size = parseSize(form.get("size"), defaultSizeFor());
+  const quality = parseQuality(form.get("quality"), defaultQualityFor());
 
   const files = form.getAll("image").filter((f): f is File => f instanceof File);
 
-  if (mode !== "generate" && files.length === 0) {
-    return bad("At least one image file is required for edit and variation modes", 400);
+  if (mode === "edit" && files.length === 0) {
+    return bad("At least one image file is required for edit mode", 400);
   }
   if (files.length > MAX_IMAGES) {
     return bad(`Maximum ${MAX_IMAGES} images per run`, 400);
   }
-  if (mode !== "variation" && prompt.length === 0) {
+  if (prompt.length === 0) {
     return bad("Prompt is required", 400);
   }
 
@@ -126,10 +115,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           let result;
           if (mode === "generate") {
             result = await generateImage(client, { prompt, model, size, quality });
-          } else if (mode === "edit") {
-            if (model !== "gpt-image-1" && model !== "dall-e-2") {
-              throw new Error("Edit mode supports gpt-image-1 or dall-e-2 only");
-            }
+          } else {
             const buf = Buffer.from(await file!.arrayBuffer());
             result = await editImage(client, {
               image: buf,
@@ -139,14 +125,6 @@ export async function POST(req: NextRequest): Promise<Response> {
               model,
               size,
               quality,
-            });
-          } else {
-            const buf = Buffer.from(await file!.arrayBuffer());
-            result = await variationImage(client, {
-              image: buf,
-              filename,
-              mimeType: file!.type || "image/png",
-              size,
             });
           }
 

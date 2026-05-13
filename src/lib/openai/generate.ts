@@ -19,16 +19,8 @@ export async function generateImage(
     prompt,
     n: 1,
     size,
+    quality,
   };
-
-  if (model === "gpt-image-1") {
-    params.quality = quality;
-  } else if (model === "dall-e-3") {
-    params.quality = quality === "hd" ? "hd" : "standard";
-    params.response_format = "b64_json";
-  } else {
-    params.response_format = "b64_json";
-  }
 
   const res = (await client.images.generate(
     params as unknown as Parameters<typeof client.images.generate>[0]

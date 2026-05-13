@@ -4,15 +4,17 @@ Drop a folder of images. The OpenAI API processes them in batch.
 
 <!-- screenshot here -->
 
-A bring-your-own-key web demo that streams progress as it generates, edits, or remixes images through the OpenAI Images API. Ships with a Python CLI that runs the same pipeline against a local folder.
+A bring-your-own-key web demo that streams progress as it generates or edits images through the OpenAI Images API. Ships with a Python CLI that runs the same pipeline against a local folder.
 
 ## Live demo
 
-<!-- live URL here -->
+https://openai-image-pipeline.vercel.app
 
 ## What this is
 
-A Next.js 16 app that lets you upload images, choose a mode (generate, edit, variation) and a model (gpt-image-1, dall-e-3, dall-e-2), and stream each image through the OpenAI Images API one at a time. Per-image progress, cost, and previews arrive over Server-Sent Events. Successful outputs are packaged as a zip for download.
+A Next.js 16 app that lets you upload images, choose a mode (generate or edit) and a model (gpt-image-2 or gpt-image-1), and stream each image through the OpenAI API one at a time. Per-image progress, cost, and previews arrive over Server-Sent Events. Successful outputs are packaged as a zip for download.
+
+DALL-E 3 was retired by OpenAI on 2026-03-04 and DALL-E 2 was sunset on 2026-05-12, so the pipeline supports only the current GPT Image models.
 
 ## Tech stack
 
